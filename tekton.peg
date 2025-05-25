@@ -1,9 +1,61 @@
 {
-	
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/waveywaves/tekton-pigeon/pkg/tekton"
+)
+
+func createTaskRun(task string) string {
+	client, err := tekton.NewClient("default")
+	if err != nil {
+		log.Fatalf("Failed to create Tekton client: %v", err)
+	}
+
+	_, err = client.ListTasks()
+	if err != nil {
+		log.Fatalf("Failed to list tasks: %v", err)
+	}
+
+	return fmt.Sprintf("Created TaskRun for task: %s", task)
 }
 
-Input <- expr:Expr EOF {
-    return expr, nil
+
+func main() {
+    if len(os.Args) != 2 {
+        log.Fatal("Usage: calculator 'EXPR'")
+    }
+    got, err := ParseReader("", strings.NewReader(os.Args[1]))
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println("=", got)
 }
+
+func toAnySlice(v any) []any {
+    if v == nil {
+        return nil
+    }
+    return v.([]any)
+}
+
+}
+
+Input <- _ expr:Expr _ EOF {
+	return expr, nil
+}
+
+Expr <- "taskrun" _ "create" _ taskName:Ident {
+	return createTaskRun(taskName.(string)), nil
+}
+
+Ident <- [a-zA-Z_][a-zA-Z0-9_]* {
+	return string(c.text), nil
+}
+
+_ <- [ \t\r\n]*
 
 EOF <- !.
