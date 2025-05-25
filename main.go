@@ -20,23 +20,53 @@ import (
 	"github.com/waveywaves/tekton-pigeon/pkg/tekton"
 )
 
-func createTaskRun(task string) string {
+func listKind(kind string) string {
 	client, err := tekton.NewClient("default")
 	if err != nil {
 		log.Fatalf("Failed to create Tekton client: %v", err)
 	}
 
-	_, err = client.ListTasks()
-	if err != nil {
-		log.Fatalf("Failed to list tasks: %v", err)
+	switch kind {
+	case "task":
+		tasks, err := client.ListTasks()
+		if err != nil {
+			log.Fatalf("Failed to list tasks: %v", err)
+		}
+		var names []string
+		for _, t := range tasks.Items {
+			names = append(names, t.Name)
+		}
+		return "Tasks: " + strings.Join(names, ", ")
+	case "taskrun":
+		runs, err := client.ListTaskRuns()
+		if err != nil {
+			log.Fatalf("Failed to list taskruns: %v", err)
+		}
+		var names []string
+		for _, r := range runs.Items {
+			names = append(names, r.Name)
+		}
+		return "TaskRuns: " + strings.Join(names, ", ")
+	default:
+		log.Fatalf("Unknown kind: %s", kind)
+		return ""
 	}
+}
 
-	return fmt.Sprintf("Created TaskRun for task: %s", task)
+func runTask(task string) string {
+	client, err := tekton.NewClient("default")
+	if err != nil {
+		log.Fatalf("Failed to create Tekton client: %v", err)
+	}
+	if err := client.CreateTaskRunFromTaskRef(task); err != nil {
+		log.Fatalf("Failed to create TaskRun: %v", err)
+	}
+	return fmt.Sprintf("Started TaskRun for task: %s", task)
 }
 
 func main() {
 	if len(os.Args) != 2 {
-		log.Fatal("Usage: calculator 'EXPR'")
+		log.Fatal("Usage: tekton 'EXPR'")
 	}
 	got, err := ParseReader("", strings.NewReader(os.Args[1]))
 	if err != nil {
@@ -56,31 +86,31 @@ var g = &grammar{
 	rules: []*rule{
 		{
 			name: "Input",
-			pos:  position{line: 47, col: 1, offset: 754},
+			pos:  position{line: 76, col: 1, offset: 1490},
 			expr: &actionExpr{
-				pos: position{line: 47, col: 10, offset: 763},
+				pos: position{line: 76, col: 10, offset: 1499},
 				run: (*parser).callonInput1,
 				expr: &seqExpr{
-					pos: position{line: 47, col: 10, offset: 763},
+					pos: position{line: 76, col: 10, offset: 1499},
 					exprs: []any{
 						&ruleRefExpr{
-							pos:  position{line: 47, col: 10, offset: 763},
+							pos:  position{line: 76, col: 10, offset: 1499},
 							name: "_",
 						},
 						&labeledExpr{
-							pos:   position{line: 47, col: 12, offset: 765},
+							pos:   position{line: 76, col: 12, offset: 1501},
 							label: "expr",
 							expr: &ruleRefExpr{
-								pos:  position{line: 47, col: 17, offset: 770},
+								pos:  position{line: 76, col: 17, offset: 1506},
 								name: "Expr",
 							},
 						},
 						&ruleRefExpr{
-							pos:  position{line: 47, col: 22, offset: 775},
+							pos:  position{line: 76, col: 22, offset: 1511},
 							name: "_",
 						},
 						&ruleRefExpr{
-							pos:  position{line: 47, col: 24, offset: 777},
+							pos:  position{line: 76, col: 24, offset: 1513},
 							name: "EOF",
 						},
 					},
@@ -89,38 +119,86 @@ var g = &grammar{
 		},
 		{
 			name: "Expr",
-			pos:  position{line: 51, col: 1, offset: 804},
+			pos:  position{line: 80, col: 1, offset: 1540},
+			expr: &choiceExpr{
+				pos: position{line: 80, col: 9, offset: 1548},
+				alternatives: []any{
+					&ruleRefExpr{
+						pos:  position{line: 80, col: 9, offset: 1548},
+						name: "ListExpr",
+					},
+					&ruleRefExpr{
+						pos:  position{line: 80, col: 20, offset: 1559},
+						name: "RunExpr",
+					},
+				},
+			},
+		},
+		{
+			name: "ListExpr",
+			pos:  position{line: 82, col: 1, offset: 1568},
 			expr: &actionExpr{
-				pos: position{line: 51, col: 9, offset: 812},
-				run: (*parser).callonExpr1,
+				pos: position{line: 82, col: 13, offset: 1580},
+				run: (*parser).callonListExpr1,
 				expr: &seqExpr{
-					pos: position{line: 51, col: 9, offset: 812},
+					pos: position{line: 82, col: 13, offset: 1580},
 					exprs: []any{
 						&litMatcher{
-							pos:        position{line: 51, col: 9, offset: 812},
-							val:        "taskrun",
+							pos:        position{line: 82, col: 13, offset: 1580},
+							val:        "list",
 							ignoreCase: false,
-							want:       "\"taskrun\"",
+							want:       "\"list\"",
 						},
 						&ruleRefExpr{
-							pos:  position{line: 51, col: 19, offset: 822},
-							name: "_",
-						},
-						&litMatcher{
-							pos:        position{line: 51, col: 21, offset: 824},
-							val:        "create",
-							ignoreCase: false,
-							want:       "\"create\"",
-						},
-						&ruleRefExpr{
-							pos:  position{line: 51, col: 30, offset: 833},
+							pos:  position{line: 82, col: 20, offset: 1587},
 							name: "_",
 						},
 						&labeledExpr{
-							pos:   position{line: 51, col: 32, offset: 835},
+							pos:   position{line: 82, col: 22, offset: 1589},
+							label: "kind",
+							expr: &ruleRefExpr{
+								pos:  position{line: 82, col: 27, offset: 1594},
+								name: "Kind",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "RunExpr",
+			pos:  position{line: 86, col: 1, offset: 1641},
+			expr: &actionExpr{
+				pos: position{line: 86, col: 12, offset: 1652},
+				run: (*parser).callonRunExpr1,
+				expr: &seqExpr{
+					pos: position{line: 86, col: 12, offset: 1652},
+					exprs: []any{
+						&litMatcher{
+							pos:        position{line: 86, col: 12, offset: 1652},
+							val:        "run",
+							ignoreCase: false,
+							want:       "\"run\"",
+						},
+						&ruleRefExpr{
+							pos:  position{line: 86, col: 18, offset: 1658},
+							name: "_",
+						},
+						&litMatcher{
+							pos:        position{line: 86, col: 20, offset: 1660},
+							val:        "task",
+							ignoreCase: false,
+							want:       "\"task\"",
+						},
+						&ruleRefExpr{
+							pos:  position{line: 86, col: 27, offset: 1667},
+							name: "_",
+						},
+						&labeledExpr{
+							pos:   position{line: 86, col: 29, offset: 1669},
 							label: "taskName",
 							expr: &ruleRefExpr{
-								pos:  position{line: 51, col: 41, offset: 844},
+								pos:  position{line: 86, col: 38, offset: 1678},
 								name: "Ident",
 							},
 						},
@@ -129,16 +207,41 @@ var g = &grammar{
 			},
 		},
 		{
-			name: "Ident",
-			pos:  position{line: 55, col: 1, offset: 901},
+			name: "Kind",
+			pos:  position{line: 90, col: 1, offset: 1729},
 			expr: &actionExpr{
-				pos: position{line: 55, col: 10, offset: 910},
+				pos: position{line: 90, col: 9, offset: 1737},
+				run: (*parser).callonKind1,
+				expr: &choiceExpr{
+					pos: position{line: 90, col: 10, offset: 1738},
+					alternatives: []any{
+						&litMatcher{
+							pos:        position{line: 90, col: 10, offset: 1738},
+							val:        "task",
+							ignoreCase: false,
+							want:       "\"task\"",
+						},
+						&litMatcher{
+							pos:        position{line: 90, col: 19, offset: 1747},
+							val:        "taskrun",
+							ignoreCase: false,
+							want:       "\"taskrun\"",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Ident",
+			pos:  position{line: 94, col: 1, offset: 1791},
+			expr: &actionExpr{
+				pos: position{line: 94, col: 10, offset: 1800},
 				run: (*parser).callonIdent1,
 				expr: &seqExpr{
-					pos: position{line: 55, col: 10, offset: 910},
+					pos: position{line: 94, col: 10, offset: 1800},
 					exprs: []any{
 						&charClassMatcher{
-							pos:        position{line: 55, col: 10, offset: 910},
+							pos:        position{line: 94, col: 10, offset: 1800},
 							val:        "[a-zA-Z_]",
 							chars:      []rune{'_'},
 							ranges:     []rune{'a', 'z', 'A', 'Z'},
@@ -146,9 +249,9 @@ var g = &grammar{
 							inverted:   false,
 						},
 						&zeroOrMoreExpr{
-							pos: position{line: 55, col: 19, offset: 919},
+							pos: position{line: 94, col: 19, offset: 1809},
 							expr: &charClassMatcher{
-								pos:        position{line: 55, col: 19, offset: 919},
+								pos:        position{line: 94, col: 19, offset: 1809},
 								val:        "[a-zA-Z0-9_]",
 								chars:      []rune{'_'},
 								ranges:     []rune{'a', 'z', 'A', 'Z', '0', '9'},
@@ -162,11 +265,11 @@ var g = &grammar{
 		},
 		{
 			name: "_",
-			pos:  position{line: 59, col: 1, offset: 966},
+			pos:  position{line: 98, col: 1, offset: 1856},
 			expr: &zeroOrMoreExpr{
-				pos: position{line: 59, col: 6, offset: 971},
+				pos: position{line: 98, col: 6, offset: 1861},
 				expr: &charClassMatcher{
-					pos:        position{line: 59, col: 6, offset: 971},
+					pos:        position{line: 98, col: 6, offset: 1861},
 					val:        "[ \\t\\r\\n]",
 					chars:      []rune{' ', '\t', '\r', '\n'},
 					ignoreCase: false,
@@ -176,11 +279,11 @@ var g = &grammar{
 		},
 		{
 			name: "EOF",
-			pos:  position{line: 61, col: 1, offset: 983},
+			pos:  position{line: 100, col: 1, offset: 1873},
 			expr: &notExpr{
-				pos: position{line: 61, col: 8, offset: 990},
+				pos: position{line: 100, col: 8, offset: 1880},
 				expr: &anyMatcher{
-					line: 61, col: 9, offset: 991,
+					line: 100, col: 9, offset: 1881,
 				},
 			},
 		},
@@ -197,14 +300,34 @@ func (p *parser) callonInput1() (any, error) {
 	return p.cur.onInput1(stack["expr"])
 }
 
-func (c *current) onExpr1(taskName any) (any, error) {
-	return createTaskRun(taskName.(string)), nil
+func (c *current) onListExpr1(kind any) (any, error) {
+	return listKind(kind.(string)), nil
 }
 
-func (p *parser) callonExpr1() (any, error) {
+func (p *parser) callonListExpr1() (any, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
-	return p.cur.onExpr1(stack["taskName"])
+	return p.cur.onListExpr1(stack["kind"])
+}
+
+func (c *current) onRunExpr1(taskName any) (any, error) {
+	return runTask(taskName.(string)), nil
+}
+
+func (p *parser) callonRunExpr1() (any, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onRunExpr1(stack["taskName"])
+}
+
+func (c *current) onKind1() (any, error) {
+	return string(c.text), nil
+}
+
+func (p *parser) callonKind1() (any, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onKind1()
 }
 
 func (c *current) onIdent1() (any, error) {

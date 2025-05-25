@@ -5,51 +5,90 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/waveywaves/tekton-pigeon/pkg/tekton"
 )
 
-func createTaskRun(task string) string {
+func listKind(kind string) string {
 	client, err := tekton.NewClient("default")
 	if err != nil {
 		log.Fatalf("Failed to create Tekton client: %v", err)
 	}
 
-	_, err = client.ListTasks()
-	if err != nil {
-		log.Fatalf("Failed to list tasks: %v", err)
+	switch kind {
+	case "task":
+		tasks, err := client.ListTasks()
+		if err != nil {
+			log.Fatalf("Failed to list tasks: %v", err)
+		}
+		var names []string
+		for _, t := range tasks.Items {
+			names = append(names, t.Name)
+		}
+		return "Tasks: " + strings.Join(names, ", ")
+	case "taskrun":
+		runs, err := client.ListTaskRuns()
+		if err != nil {
+			log.Fatalf("Failed to list taskruns: %v", err)
+		}
+		var names []string
+		for _, r := range runs.Items {
+			names = append(names, r.Name)
+		}
+		return "TaskRuns: " + strings.Join(names, ", ")
+	default:
+		log.Fatalf("Unknown kind: %s", kind)
+		return ""
 	}
-
-	return fmt.Sprintf("Created TaskRun for task: %s", task)
 }
 
+func runTask(task string) string {
+	client, err := tekton.NewClient("default")
+	if err != nil {
+		log.Fatalf("Failed to create Tekton client: %v", err)
+	}
+	if err := client.CreateTaskRunFromTaskRef(task); err != nil {
+		log.Fatalf("Failed to create TaskRun: %v", err)
+	}
+	return fmt.Sprintf("Started TaskRun for task: %s", task)
+}
 
 func main() {
-    if len(os.Args) != 2 {
-        log.Fatal("Usage: calculator 'EXPR'")
-    }
-    got, err := ParseReader("", strings.NewReader(os.Args[1]))
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("=", got)
+	if len(os.Args) != 2 {
+		log.Fatal("Usage: tekton 'EXPR'")
+	}
+	got, err := ParseReader("", strings.NewReader(os.Args[1]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("=", got)
 }
 
 func toAnySlice(v any) []any {
-    if v == nil {
-        return nil
-    }
-    return v.([]any)
+	if v == nil {
+		return nil
+	}
+	return v.([]any)
 }
-
 }
 
 Input <- _ expr:Expr _ EOF {
 	return expr, nil
 }
 
-Expr <- "taskrun" _ "create" _ taskName:Ident {
-	return createTaskRun(taskName.(string)), nil
+Expr <- ListExpr / RunExpr
+
+ListExpr <- "list" _ kind:Kind {
+	return listKind(kind.(string)), nil
+}
+
+RunExpr <- "run" _ "task" _ taskName:Ident {
+	return runTask(taskName.(string)), nil
+}
+
+Kind <- ("task" / "taskrun") {
+	return string(c.text), nil
 }
 
 Ident <- [a-zA-Z_][a-zA-Z0-9_]* {

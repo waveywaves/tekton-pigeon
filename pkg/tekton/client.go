@@ -54,6 +54,11 @@ func (c *Client) ListTasks() (*tektonv1.TaskList, error) {
 	return c.tektonClientset.TektonV1().Tasks(c.namespace).List(context.Background(), metav1.ListOptions{})
 }
 
+// ListTaskRuns returns a list of all TaskRuns in the namespace
+func (c *Client) ListTaskRuns() (*tektonv1.TaskRunList, error) {
+	return c.tektonClientset.TektonV1().TaskRuns(c.namespace).List(context.Background(), metav1.ListOptions{})
+}
+
 // CreateTaskRun creates a new TaskRun for the specified Task
 func (c *Client) CreateTaskRun(taskName string, params map[string]string) (*tektonv1.TaskRun, error) {
 	// Create TaskRun spec
@@ -86,4 +91,10 @@ func (c *Client) CreateTaskRun(taskName string, params map[string]string) (*tekt
 
 	// Create the TaskRun
 	return c.tektonClientset.TektonV1().TaskRuns(c.namespace).Create(context.Background(), taskRun, metav1.CreateOptions{})
+}
+
+// CreateTaskRunFromTaskRef creates a new TaskRun from a task reference
+func (c *Client) CreateTaskRunFromTaskRef(taskName string) error {
+	_, err := c.CreateTaskRun(taskName, nil)
+	return err
 }
