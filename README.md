@@ -1,1 +1,5 @@
-# tekton-pigeon
+# tekton pigeon parser
+
+```
+pigeon tekton.peg > tekton.go
+```

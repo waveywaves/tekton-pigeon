@@ -1,0 +1,9 @@
+{
+	
+}
+
+Input <- expr:Expr EOF {
+    return expr, nil
+}
+
+EOF <- !.
